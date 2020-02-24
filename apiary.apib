@@ -43,7 +43,7 @@ Authorization: APIAuth-HMAC-SHA256 ceecb669ce3d1591d:MbLJCZhny/ojY4OPntEDp89IbKU
 The request also contains a custom http `X-Date` header containing the date, in UTC, 
 the request was signed. The date must be in ISO-8601 format and UTC timezone, 
 for instance `2018-09-12T07:26:03.413Z`. The date should not differ more than 5 minutes, 
-compared to the Accurat API system time. If the timestamp is not valid, 
+compared to the Justified API system time. If the timestamp is not valid, 
 the response will be a 401.
 
 Implementation example in node.js:
@@ -83,6 +83,7 @@ If you are having trouble with the signing of API calls, try the following steps
 ## Debugging
 
 Some data examples to use in unit testing the request signing logic.
+The data, endpoints and requests are completely fictitious.
 
 ### JSON Data
 ```bash
@@ -196,7 +197,7 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 ## Case (object)
 + token: TY5643FV (string, required)
 + is_contested: true (boolean, required)
-+ inserted_at: "2018-09-05 13:03:34" (string)
++ inserted_at: `2018-09-05 13:03:34` (string)
 + customer (Customer) - Linked customer
 
 ## Customer (object)
@@ -222,14 +223,16 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 
 + Request (application/json)
 
-        {
-          "name": "JanManNv",
-          "vat": "0909090999",
-          "street": "Janstraat",
-          "nbr": "4",
-          "postal_code": "4444",
-          "city": "Mancity"
-        }
+    + Body
+
+            {
+              "name": "JanManNv",
+              "vat": "0909090999",
+              "street": "Janstraat",
+              "nbr": "4",
+              "postal_code": "4444",
+              "city": "Mancity"
+            }
 
 + Response 200 (application/json)
 
@@ -290,8 +293,17 @@ List all cases.
         {
             "data": [
                 {
-                    "token": "JKKGX4V",
-                    ...
+                    "token": "LDNN2PX",
+                    "is_contested": false,
+                    "amount": 100,
+                    "report_state": "faling",
+                    "state": "suspended",
+                    "state_date": "2019-10-02 20:38:14",
+                    "client_token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+                    "inserted_at": "2018-09-05 13:03:34",
+                    "customer": {
+                        ...
+                    }
                 }
             ]
         }
@@ -317,21 +329,12 @@ After the client chooses a plan, he will be redirected to the `redirect_url`
 
 A `200 OK` is returned with the case token in the response body.
 
-!! TODO
-Hierin zit initiele statement (factuur) data in.
-
 + Request (application/json)
 
         {
             "identifier": "799f90f1-eabf-43a3-913f-ff59f1057a0c",
             "is_contested": false,
             "client_token": "1a143942-f666-11e8-ab43-92cb39c4c490",
-            "statement": {
-                "amount": 100,
-                "vat_type": 0.21,
-                "reference": "something",
-                !! TODO
-            },
             "customer": {
                 // The debtor is a company
                 "is_company": true,
@@ -379,6 +382,7 @@ Hierin zit initiele statement (factuur) data in.
 
         {
             "data": {   
+                "token": "LDNN2PX",
                 "is_contested": false,
                 "amount": 100,
                 "report_state": "faling",
@@ -407,10 +411,9 @@ Not all case data can be updated.
 + Request (application/json)
 
         {
-            !! TODO
             "is_contested": false,
             "customer": {
-                "is_company": true | false,
+                "is_company": true,
                 // The debtor is a company
                 "name": "Scam nv",
                 "vat": "9999999999",
@@ -424,6 +427,7 @@ Not all case data can be updated.
 
         {
             "data": {
+                "token": "LDNN2PX",
                 "is_contested": false,
                 "amount": 100,
                 "report_state": "faling",
@@ -499,18 +503,18 @@ Not all case data can be updated.
             "data": [
                 {
                     "token": "83f07551-3f8c-4b60-99ef-fcb399f2764a",
-                    !! TODO
+                    "amount": 100,
+                    "type": "debet",
+                    "reference": "20201287",
+                    "date": "2020-01-18",
+                    "url": "!! TODO"
                 }
             ]
         }
 
 ### Upload Case Statement [POST]
 
-Type (fact, credit)
-Bedrag
-Referentie
-Datum
-Upload
+!! TODO
 
 + Request (application/json)
 
@@ -523,6 +527,11 @@ Upload
         {
             "data": {
                 "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+                "amount": 100,
+                "type": "debet",
+                "reference": "20201287",
+                "date": "2020-01-18",
+                "url": "!! TODO"
             }
         }
 
@@ -533,6 +542,10 @@ Upload
 + Request (application/json)
 
         {
+            "amount": 120,
+            "type": "credit",
+            "reference": "20201287",
+            "date": "2020-01-18"
         }
 
 + Response 200 (application/json)
@@ -540,6 +553,11 @@ Upload
         {
             "data": {
                 "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+                "amount": 120,
+                "type": "credit",
+                "reference": "20201287",
+                "date": "2020-01-18",
+                "url": "!! TODO"
             }
         }
 
@@ -566,8 +584,6 @@ Upload
         }
 
 ### Add Case Discharge [POST]
-
-!! TODO
 
 + Request (application/json)
 
