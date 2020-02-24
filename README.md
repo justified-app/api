@@ -4,4 +4,6 @@ For integrators.
 
 Please contact hello@justified.be for access or a collaboration.
 
-Copyright Justified bvba
+![Flow](https://justified.be/content/home/02-upload.svg)
+
++Copyright Justified bvba_
