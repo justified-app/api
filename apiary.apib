@@ -171,6 +171,29 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 - `0.06` 6%
 - `0.00` 0%
 
+## Report states
+
+- `afbetalingsplan`
+- `faling`
+- `insolvabel`
+- `in_vereffening`
+- `meerdere_dossiers`
+- `ambtshalve_afgeschreven`
+- `overleden`
+- `onvindbaar`
+- `collectieve_schuldenregeling_boedel`
+- `buitenland`
+- !! TODO
+
+## Case states
+
+- `new`
+- `unprocessable`
+- `finished`
+- `in_progress`
+- `suspended`
+- !! TODO
+
 # Group Clients
 
 ## Clients [/clients]
@@ -188,10 +211,18 @@ Errors are always returned as an array of error objects, keyed by errors in the 
           "city": "Mancity"
         }
 
-+ Response (application/json)
++ Response 200 (application/json)
 
         {
-            "token": "1a143942-f666-11e8-ab43-92cb39c4c490"
+            "data": {
+                "token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+                "name": "JanManNv",
+                "vat": "0909090999",
+                "street": "Janstraat",
+                "nbr": "4",
+                "postal_code": "4444",
+                "city": "Mancity"
+            }
         }
 
 ## Client [/clients/{token}]
@@ -201,18 +232,26 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 + Request (application/json)
 
         {
-          "name": "JanManNv",
+          "name": "Jan Man Nv",
           "vat": "0909090999",
           "street": "Janstraat",
           "nbr": "4",
           "postal_code": "4444",
-          "city": "Mancity"
+          "city": "Manstad"
         }
 
-+ Response (application/json)
++ Response 200 (application/json)
 
         {
-            "token": "1a143942-f666-11e8-ab43-92cb39c4c490"
+            "data": {
+                "token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+                "name": "Jan Man Nv",
+                "vat": "0909090999",
+                "street": "Janstraat",
+                "nbr": "4",
+                "postal_code": "4444",
+                "city": "Manstad"
+            }
         }
 
 # Group Cases
@@ -225,12 +264,14 @@ List all cases.
 
 + Response 200 (application/json)
 
-        [
-            {
-                "token": "JKKGX4V",
-                ...
-            }
-        ]
+        {
+            "data": [
+                {
+                    "token": "JKKGX4V",
+                    ...
+                }
+            ]
+        }
 
 ### Create a New Cases [POST]
 
@@ -239,14 +280,22 @@ In return, a unique Justified identifier is returned, which can be used to inter
 
 To create a case, one must be provide a lot of linked data: client information, customer information, statement, ...
 
-The response can variate based on the client having a selected plan or not:
+The response can variate based on the client having a selected plan or not.
 
-- In case the client has **no plan**, he/she must choose one on a case level. The response will return a `redirect_url` for the client. After the client chooses a plan, he will be redirected to the `redirect_url`.
-- In case the client has a plan, `200 OK` is returned with the case token.
+#### In case the client has **no plan**.
 
+He/she must choose one on a case level. The response will have:
+  - A status code of `303 See Other`.
+  - A `redirect_url` for the client. 
+  
+After the client chooses a plan, he will be redirected to the `redirect_url`
+
+#### In case the client has a plan.
+
+A `200 OK` is returned with the case token in the response body.
+
+!! TODO
 Hierin zit initiele statement (factuur) data in.
-
-Create case where the debtor is a company:
 
 + Request (application/json)
 
@@ -257,26 +306,20 @@ Create case where the debtor is a company:
             "statement": {
                 "amount": 100,
                 "vat_type": 0.21,
-                "reference": "something"
+                "reference": "something",
+                !! TODO
             },
             "customer": {
+                // The debtor is a company
                 "is_company": true,
                 "name": "Scam nv",
-                "vat": "9999999999"
-            }
-        }
-
-Create case where the debtor is an individual:
-
-+ Request (application/json)
-
-        {
-            ...,
-            "customer": {
+                "vat": "9999999999",
+                // The debtor is an individual
                 "is_company": false,
                 "firstname": "Tom",
                 "lastname": "Verbeke"
-            }
+            },
+            "redirect_url": "https://YOURAPP.TLD/finish/799f90f1-eabf-43a3-913f-ff59f1057a0c"
         }
 
 + Response 200 (application/json)
@@ -284,63 +327,103 @@ Create case where the debtor is an individual:
     + Body
 
             {
-                "token": "LDNN2PX"
+                "data": { 
+                    "token": "LDNN2PX"
+                }
+            }
+
++ Response 303 (application/json)
+
+    + Body
+
+            {
+                "data": {        
+                    "token": "LDNN2PX",
+                    "redirect_url": "https://app.justified.be/cases/LDNN2PX/plan"
+                }
             }
 
 ## Case [/cases/{token}]
 
 ### Get a Case [GET]
 
-Details van dossier
-Saldo(s)
-Tag
-Status
-.. + al de rest
-
 + Request (application/json)
-
-        {
-        }
 
 + Response 200 (application/json)
 
         {
+            "data": {        
+                "is_contested": false,
+                "amount": 100,
+                "report_state": "faling",
+                "state": "suspended",
+                "state_date": "2019-10-02 20:38:14",
+                "client_token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+                "customer": {
+                    // The debtor is a company
+                    "is_company": true,
+                    "name": "Scam nv",
+                    "vat": "9999999999",
+                    // The debtor is an individual
+                    "is_company": false,
+                    "firstname": "Tom",
+                    "lastname": "Verbeke"
+                },
+            }
         }
 
 ### Update a Case [PUT]
 
-Bepaalde informatie dossier updaten
+Not all case data can be updated.
+!! TODO
 
 + Request (application/json)
 
         {
+            !! TODO
+            "is_contested": false,
+            "customer": {
+                // The debtor is a company
+                "name": "Scam nv",
+                "vat": "9999999999",
+                // The debtor is an individual
+                "firstname": "Tom",
+                "lastname": "Verbeke"
+            },
         }
 
 + Response 200 (application/json)
 
         {
+            "data": {
+                "is_contested": false,
+                "amount": 100,
+                "report_state": "faling",
+                "state": "suspended",
+                "state_date": "2019-10-02 20:38:14",
+                "client_token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+                "customer": {
+                    // The debtor is a company
+                    "is_company": true,
+                    "name": "Scam nv",
+                    "vat": "9999999999",
+                },
+            }
         }
 
 ## Case Documents [/cases/{token}/documents]
 
 ### List Case Documents [GET]
 
-Documenten ophalen
-
 + Request (application/json)
-
-        {
-        }
 
 + Response 200 (application/json)
 
         {
+            
         }
 
 ### Upload a Case Document [POST]
-
-1 document uploaden met meta informatie
-Type, naam, ...
 
 + Request (application/json)
 
@@ -356,12 +439,7 @@ Type, naam, ...
 
 ### List Case Statements [GET]
 
-Ophalen statements
-
 + Request (application/json)
-
-        {
-        }
 
 + Response 200 (application/json)
 
@@ -405,12 +483,7 @@ Updaten upload file
 
 ### List Case Discharges [GET]
 
-Ophalen discharges
-
 + Request (application/json)
-
-        {
-        }
 
 + Response 200 (application/json)
 
