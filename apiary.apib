@@ -493,19 +493,27 @@ Not all case data can be updated.
 
 ### Upload Case File [POST]
 
-!! TODO
+Uploading a file starts with posting the metadata of the file.
+The response of this requests returns the `token` of the case file and a `Location`
+property in the headers. The URL in the `Location` is where you must upload your file.
 
 + Request (application/json)
 
         {
+            "name": "invoice_18005992.pdf",
         }
 
 + Response 200 (application/json)
+    
+    + Headers
+    
+        Location: UPLOAD_URL
+
+    + Body
 
         {
             "data": {
                 "token": "83f07551-3f8c-4b60-99ef-fcb399f2764a",
-                "filename": "xzuowyo9vuckpyl-invoice18005992.pdf",
                 "url": "https://app.justified.be/cases/LDNN2PX/file/83f07551-3f8c-4b60-99ef-fcb399f2764a",
                 "name": "invoice_18005992.pdf",
                 "inserted_at": "2018-09-05 13:03:34"
@@ -531,22 +539,34 @@ Not all case data can be updated.
                     "type": "debet",
                     "reference": "20201287",
                     "date": "2020-01-18",
-                    "url": "!! TODO"
+                    "url": "https://app.justified.be/cases/LDNN2PX/statement/83f07551-3f8c-4b60-99ef-fcb399f2764a"
                 }
             ]
         }
 
 ### Upload Case Statement [POST]
 
-!! TODO
+Uploading a statement starts with posting the metadata of the statement.
+The response of this requests returns the `token` of the case statement and a `Location`
+property in the headers. The URL in the `Location` is where you must upload your statement file.
 
 + Request (application/json)
 
         {
             "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+            "amount": 100,
+            "type": "debet",
+            "reference": "20201287",
+            "date": "2020-01-18",
         }
 
 + Response 200 (application/json)
+
+    + Headers
+    
+        Location: UPLOAD_URL
+        
+    + Body
 
         {
             "data": {
@@ -555,7 +575,7 @@ Not all case data can be updated.
                 "type": "debet",
                 "reference": "20201287",
                 "date": "2020-01-18",
-                "url": "!! TODO"
+                "url": "https://app.justified.be/cases/LDNN2PX/statement/83f07551-3f8c-4b60-99ef-fcb399f2764a"
             }
         }
 
@@ -581,7 +601,7 @@ Not all case data can be updated.
                 "type": "credit",
                 "reference": "20201287",
                 "date": "2020-01-18",
-                "url": "!! TODO"
+                "url": "https://app.justified.be/cases/LDNN2PX/statement/83f07551-3f8c-4b60-99ef-fcb399f2764a"
             }
         }
 
