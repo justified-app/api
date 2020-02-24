@@ -1,80 +1,448 @@
 FORMAT: 1A
-HOST: https://polls.apiblueprint.org/
+HOST: https://app.justified.be/api/1
 
 # Justified
 
 The solution for unpaid invoices. Get your unpaid invoices paid, quick and easy.
 
-## Questions Collection [/questions]
+# General
 
-### List All Questions [GET]
+# Authentication
+
+## HMAC
+
+Hash-based Message Authentication Code (HMAC) is a message authentication code that uses a cryptographic key in conjunction with a hash function.
+
+Hash-based message authentication code (HMAC) provides the server and the client each with a private key that is known only to that specific server and that specific client. 
+
+The client creates a unique HMAC, or hash, per request to the server by hashing the request data with the private keys and sending it as part of a request. 
+
+Once the server receives the request and regenerates its own unique HMAC, it compares the two HMACs. If they're equal, the client is trusted and the request is executed. This process is often called a secret handshake.
+
+See https://en.wikipedia.org/wiki/HMAC
+
+## Request signing
+Every request you make to the API must carry an http `Authorization` header, 
+containing the authentication string. The authentication string has following components:
+
+* Auth name: `APIAuth-HMAC-SHA256`
+* App username 
+* Signature: build up by 5 components that are glued together and hashed with the hmac sha-256 algorithm and the APP secret:
+  * method (GET, POST, ...),
+  * content type,
+  * md5 hash of the request body,
+  * path,
+  * date (see `X-Date`). 
+
+An example of a complete http `Authorization` header:
+```bash
+// Pseudo: Authorization: APIAuth-HMAC-SHA256 {APP_USERNAME}:{SIGNATURE}
+Authorization: APIAuth-HMAC-SHA256 ceecb669ce3d1591d:MbLJCZhny/ojY4OPntEDp89IbKU2kUbd9NSA014xamU=
+```
+
+The request also contains a custom http `X-Date` header containing the date, in UTC, 
+the request was signed. The date must be in ISO-8601 format and UTC timezone, 
+for instance `2018-09-12T07:26:03.413Z`. The date should not differ more than 5 minutes, 
+compared to the Accurat API system time. If the timestamp is not valid, 
+the response will be a 401.
+
+Implementation example in node.js:
+```javascript
+const MD5 = require('crypto-js/md5')
+const Base64 = require('js-base64').Base64
+const hmacSHA256 = require('crypto-js/hmac-sha256')
+
+// Format is ISO-8601
+const xDate = new Date().toISOString()
+const contentType = request.getHeader('Content-Type')
+
+// Example /api/2/settings
+const url = document.createElement('a')
+url.href = request.getUrl()
+const path = url.pathname + url.search
+
+const md5Hash = Base64.stringify(MD5(request.getBodyText()).toLowerCase())
+const canonicalStr = [method, contentType, md5Hash, path, xDate].join('')
+const signature = Base64.stringify(hmacSHA256(canonicalStr, appSecret).toLowerCase())
+const authToken = 'APIAuth-HMAC-SHA256 ' + appUsername + ':' + signature
+
+request.setHeader('Content-Type', contentType)
+request.setHeader('X-Date', xDate)
+request.setHeader('Authorization', authToken)
+```
+
+## Troubleshooting
+If you are having trouble with the signing of API calls, try the following steps:
+
+1. Make sure your system clock is synchronised using NTP. This is a standard feature of every (operating) system.
+2. Make sure you correctly concatenated the right hash parts and included **all the needed information in the header** (such as `content-type` and `x-date`).
+3. Make sure to **Base64 encode** the md5 and hmac hashes.
+4. Make sure to **lower case** the hashes from md5 and hmac before encoding it to a Base64 string.
+5. If you have an empty `content-type`, you still have to **include the `content-type`** in the request as an empty string.
+
+## Debugging
+
+Some data examples to use in unit testing the request signing logic.
+
+### JSON Data
+```bash
+secret = "a"
+data = "{\"checksum\":\"00DA0A6AA3F79238257FCF49684832EE\"}"
+md5(data) = "103444b012ef108660d00fe9ad2c28a0"
+base64(md5(data)) = "MTAzNDQ0YjAxMmVmMTA4NjYwZDAwZmU5YWQyYzI4YTA="
+
+canonical = "POSTapplication/json; charset=utf-8MTAzNDQ0YjAxMmVmMTA4NjYwZDAwZmU5YWQyYzI4YTA=/api/1/geofences/status2019-01-14T14:26:40.185Z"
+hmac(secret, canonical) = "32520c4bf146ef96536eeb10b5f9269223f8848f9ea3bb87c35c59d3abc019db"
+base64(hmac(secret, canonical)) = "MzI1MjBjNGJmMTQ2ZWY5NjUzNmVlYjEwYjVmOTI2OTIyM2Y4ODQ4ZjllYTNiYjg3YzM1YzU5ZDNhYmMwMTlkYg=="
+```
+
+```bash
+secret = "a"
+data = "{\"ad_id\":\"bd817140-73f5-4fa0-a681-61ee33351800\",\"type\":\"tracking\",\"state\":1,\"version\":201807,\"refuse_count\":0}"
+md5(data) = "4d86706b42832572ca9793e00198aa9f"
+base64(md5(data)) = "NGQ4NjcwNmI0MjgzMjU3MmNhOTc5M2UwMDE5OGFhOWY="
+
+canonical = "POSTapplication/json; charset=utf-8NGQ4NjcwNmI0MjgzMjU3MmNhOTc5M2UwMDE5OGFhOWY=/api/1/consent2019-01-14T14:26:39.308Z"
+hmac(secret, canonical) = "59cdd8439f509d8ea99ac74fe278e6b5f79c7cffd92c93b8eeb3ae7e49f6b5bc"
+base64(hmac(secret, canonical)) = "NTljZGQ4NDM5ZjUwOWQ4ZWE5OWFjNzRmZTI3OGU2YjVmNzljN2NmZmQ5MmM5M2I4ZWViM2FlN2U0OWY2YjViYw=="
+```
+
+### Empty data, no content type
+```bash
+secret = "a"
+data = ""
+md5(data) = "d41d8cd98f00b204e9800998ecf8427e"
+base64(md5(data)) = "ZDQxZDhjZDk4ZjAwYjIwNGU5ODAwOTk4ZWNmODQyN2U="
+
+canonical = "GETZDQxZDhjZDk4ZjAwYjIwNGU5ODAwOTk4ZWNmODQyN2U=/api/1/consent/3a790d2a-2414-40bf-9284-c070ec1bb1052019-01-16T09:52:03.515Z"
+hmac(secret, canonical) = "d92a3fc2031c8e7aabb3decf01df9d6fff8622c11ec094eb003f54e64b213ddb"
+base64(hmac(secret, canonical)) = "ZDkyYTNmYzIwMzFjOGU3YWFiYjNkZWNmMDFkZjlkNmZmZjg2MjJjMTFlYzA5NGViMDAzZjU0ZTY0YjIxM2RkYg=="
+```
+
+### Empty data
+```bash
+data = ""
+md5(data) = "d41d8cd98f00b204e9800998ecf8427e"
+base64(md5(data)) = "ZDQxZDhjZDk4ZjAwYjIwNGU5ODAwOTk4ZWNmODQyN2U="
+
+canonical = "POSTapplication/json; charset=utf-8ZDQxZDhjZDk4ZjAwYjIwNGU5ODAwOTk4ZWNmODQyN2U=/api/1/consent2019-01-14T14:26:39.308Z"
+hmac(secret, canonical) = "a15306270cda9382d04b5e2916688a6ed167e61c3ffbe27c9c10e644e6ebc0c6"
+base64(hmac(secret, canonical)) = "YTE1MzA2MjcwY2RhOTM4MmQwNGI1ZTI5MTY2ODhhNmVkMTY3ZTYxYzNmZmJlMjdjOWMxMGU2NDRlNmViYzBjNg=="
+```
+
+# Status Codes
+
+Common used status codes:
+
+- `200` - OK
+- `400` - Bad Request, the request contains invalid data or references non-existing resources
+- `401` - Unauthorized, invalid or missing access token
+- `403` - Forbidden, not allowed to access this resource
+- `404` - Not Found, resource not found
+- `429` - Too Many Requests, your client has reached the API rate limit
+- `500` - Internal Server Error, something went wrong on our end
+
+# Rate limiting
+
+To ensure a fast and predictable experience for everyone, all our API endpoints have a rate limit of 100 calls per minute 
+for each integration. 
+
+When you go over this limit, our API will respond with a `HTTP 429 Too Many Requests error`.
+
+# Errors
+
+Errors are always returned as an array of error objects, keyed by errors in the top level of a JSON object:
+```json
+{
+  "errors": [
+    {
+      "title": "Company name must not be empty"
+    }
+  ]
+}
+```
+
+# Data types
+
+## VAT types
+
+- `0.21` 21%
+- `0.12` 12%
+- `0.06` 6%
+- `0.00` 0%
+
+# Group Clients
+
+## Clients [/clients]
+
+### Create a New Client [POST]
+
++ Request (application/json)
+
+        {
+          "name": "JanManNv",
+          "vat": "0909090999",
+          "street": "Janstraat",
+          "nbr": "4",
+          "postal_code": "4444",
+          "city": "Mancity"
+        }
+
++ Response (application/json)
+
+        {
+            "token": "1a143942-f666-11e8-ab43-92cb39c4c490"
+        }
+
+## Client [/clients/{token}]
+
+### Update a Client [PUT]
+
++ Request (application/json)
+
+        {
+          "name": "JanManNv",
+          "vat": "0909090999",
+          "street": "Janstraat",
+          "nbr": "4",
+          "postal_code": "4444",
+          "city": "Mancity"
+        }
+
++ Response (application/json)
+
+        {
+            "token": "1a143942-f666-11e8-ab43-92cb39c4c490"
+        }
+
+# Group Cases
+
+## Cases [/cases]
+
+### List All Cases [GET]
+
+List all cases.
 
 + Response 200 (application/json)
 
         [
             {
-                "question": "Favourite programming language?",
-                "published_at": "2015-08-05T08:40:51.620Z",
-                "choices": [
-                    {
-                        "choice": "Swift",
-                        "votes": 2048
-                    }, {
-                        "choice": "Python",
-                        "votes": 1024
-                    }, {
-                        "choice": "Objective-C",
-                        "votes": 512
-                    }, {
-                        "choice": "Ruby",
-                        "votes": 256
-                    }
-                ]
+                "token": "JKKGX4V",
+                ...
             }
         ]
 
-### Create a New Question [POST]
+### Create a New Cases [POST]
 
-You may create your own question using this action. It takes a JSON
-object containing a question and a collection of answers in the
-form of choices.
+Each case needs to be created with unique identifier linking the case to the integrators internal system.
+In return, a unique Justified identifier is returned, which can be used to interact with the case in other requests.
+
+To create a case, one must be provide a lot of linked data: client information, customer information, statement, ...
+
+The response can variate based on the client having a selected plan or not:
+
+- In case the client has **no plan**, he/she must choose one on a case level. The response will return a `redirect_url` for the client. After the client chooses a plan, he will be redirected to the `redirect_url`.
+- In case the client has a plan, `200 OK` is returned with the case token.
+
+Hierin zit initiele statement (factuur) data in.
+
+Create case where the debtor is a company:
 
 + Request (application/json)
 
         {
-            "question": "Favourite programming language?",
-            "choices": [
-                "Swift",
-                "Python",
-                "Objective-C",
-                "Ruby"
-            ]
+            "identifier": "799f90f1-eabf-43a3-913f-ff59f1057a0c",
+            "is_contested": false,
+            "client_token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+            "statement": {
+                "amount": 100,
+                "vat_type": 0.21,
+                "reference": "something"
+            },
+            "customer": {
+                "is_company": true,
+                "name": "Scam nv",
+                "vat": "9999999999"
+            }
         }
 
-+ Response 201 (application/json)
+Create case where the debtor is an individual:
 
-    + Headers
++ Request (application/json)
 
-            Location: /questions/2
+        {
+            ...,
+            "customer": {
+                "is_company": false,
+                "firstname": "Tom",
+                "lastname": "Verbeke"
+            }
+        }
+
++ Response 200 (application/json)
 
     + Body
 
             {
-                "question": "Favourite programming language?",
-                "published_at": "2015-08-05T08:40:51.620Z",
-                "choices": [
-                    {
-                        "choice": "Swift",
-                        "votes": 0
-                    }, {
-                        "choice": "Python",
-                        "votes": 0
-                    }, {
-                        "choice": "Objective-C",
-                        "votes": 0
-                    }, {
-                        "choice": "Ruby",
-                        "votes": 0
-                    }
-                ]
+                "token": "LDNN2PX"
             }
+
+## Case [/cases/{token}]
+
+### Get a Case [GET]
+
+Details van dossier
+Saldo(s)
+Tag
+Status
+.. + al de rest
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+### Update a Case [PUT]
+
+Bepaalde informatie dossier updaten
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+## Case Documents [/cases/{token}/documents]
+
+### List Case Documents [GET]
+
+Documenten ophalen
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+### Upload a Case Document [POST]
+
+1 document uploaden met meta informatie
+Type, naam, ...
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+## Case Statements [/cases/{token}/statements]
+
+### List Case Statements [GET]
+
+Ophalen statements
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+### Upload Case Statement [POST]
+
+Toevoegen nieuwe statement
+Type (fact, credit)
+Bedrag
+Referentie
+Datum
+Upload
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+### Update Case Statement [PUT]
+
+Updaten upload file
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+## Case Discharges [/cases/{token}/discharges]
+
+### List Case Discharges [GET]
+
+Ophalen discharges
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+### Add Case Discharge [POST]
+
+Toevoegen nieuwe afkorting
+Bedrag
+Datum
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
+
+### Update Case Discharge [PUT]
+
+Updaten van discharge
+
++ Request (application/json)
+
+        {
+        }
+
++ Response 200 (application/json)
+
+        {
+        }
