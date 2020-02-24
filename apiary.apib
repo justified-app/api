@@ -162,17 +162,15 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 }
 ```
 
-# Data types
+# Data Types
 
 ## VAT types
-
 - `0.21` 21%
 - `0.12` 12%
 - `0.06` 6%
 - `0.00` 0%
 
 ## Report states
-
 - `afbetalingsplan`
 - `faling`
 - `insolvabel`
@@ -186,7 +184,6 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 - !! TODO
 
 ## Case states
-
 - `new`
 - `unprocessable`
 - `finished`
@@ -194,9 +191,32 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 - `suspended`
 - !! TODO
 
+# Data Structures
+
+## Case (object)
++ token: TY5643FV (string, required)
++ is_contested: true (boolean, required)
++ inserted_at: "2018-09-05 13:03:34" (string)
++ customer (Customer) - Linked customer
+
+## Customer (object)
++ firstname: Jan (string)
+    Only required when `is_company` is false.
++ lastname: Man (string)
+    Only required when `is_company` is false.
++ name: Scam nv (string)
+    Only required when `is_company` is true.
++ vat: 09874345123 (string)
+    Only required when `is_company` is true.
++ is_company: false (boolean, required)
+
+## Client (object)
++ name: Boba Fett (string, required)
++ vat: 09874345123 (string, required)
+
 # Group Clients
 
-## Clients [/clients]
+## Client Collection [/clients]
 
 ### Create a New Client [POST]
 
@@ -227,6 +247,9 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 
 ## Client [/clients/{token}]
 
++ Parameters
+    + token (string) - Token of the client
+
 ### Update a Client [PUT]
 
 + Request (application/json)
@@ -256,7 +279,7 @@ Errors are always returned as an array of error objects, keyed by errors in the 
 
 # Group Cases
 
-## Cases [/cases]
+## Case Collection [/cases]
 
 ### List All Cases [GET]
 
@@ -273,7 +296,7 @@ List all cases.
             ]
         }
 
-### Create a New Cases [POST]
+### Create New Case [POST]
 
 Each case needs to be created with unique identifier linking the case to the integrators internal system.
 In return, a unique Justified identifier is returned, which can be used to interact with the case in other requests.
@@ -345,20 +368,24 @@ Hierin zit initiele statement (factuur) data in.
 
 ## Case [/cases/{token}]
 
-### Get a Case [GET]
++ Parameters
+    + token (string) - Token of the case
+
+### Get Case [GET]
 
 + Request (application/json)
 
 + Response 200 (application/json)
 
         {
-            "data": {        
+            "data": {   
                 "is_contested": false,
                 "amount": 100,
                 "report_state": "faling",
                 "state": "suspended",
                 "state_date": "2019-10-02 20:38:14",
                 "client_token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+                "inserted_at": "2018-09-05 13:03:34",
                 "customer": {
                     // The debtor is a company
                     "is_company": true,
@@ -368,11 +395,11 @@ Hierin zit initiele statement (factuur) data in.
                     "is_company": false,
                     "firstname": "Tom",
                     "lastname": "Verbeke"
-                },
+                }
             }
         }
 
-### Update a Case [PUT]
+### Update Case [PUT]
 
 Not all case data can be updated.
 !! TODO
@@ -383,6 +410,7 @@ Not all case data can be updated.
             !! TODO
             "is_contested": false,
             "customer": {
+                "is_company": true | false,
                 // The debtor is a company
                 "name": "Scam nv",
                 "vat": "9999999999",
@@ -402,6 +430,7 @@ Not all case data can be updated.
                 "state": "suspended",
                 "state_date": "2019-10-02 20:38:14",
                 "client_token": "1a143942-f666-11e8-ab43-92cb39c4c490",
+                "inserted_at": "2018-09-05 13:03:34",
                 "customer": {
                     // The debtor is a company
                     "is_company": true,
@@ -411,19 +440,32 @@ Not all case data can be updated.
             }
         }
 
-## Case Documents [/cases/{token}/documents]
+## Case File Collection [/cases/{token}/files]
 
-### List Case Documents [GET]
++ Parameters
+    + token (string) - Token of the case
+
+### List Case Files [GET]
 
 + Request (application/json)
 
 + Response 200 (application/json)
 
         {
-            
+            "data": [
+                {
+                    "token": "83f07551-3f8c-4b60-99ef-fcb399f2764a",
+                    "filename": "xzuowyo9vuckpyl-invoice18005992.pdf",
+                    "url": "https://app.justified.be/cases/LDNN2PX/file/83f07551-3f8c-4b60-99ef-fcb399f2764a",
+                    "name": "invoice_18005992.pdf",
+                    "inserted_at": "2018-09-05 13:03:34"
+                }
+            ]
         }
 
-### Upload a Case Document [POST]
+### Upload Case File [POST]
+
+!! TODO
 
 + Request (application/json)
 
@@ -433,9 +475,19 @@ Not all case data can be updated.
 + Response 200 (application/json)
 
         {
+            "data": {
+                "token": "83f07551-3f8c-4b60-99ef-fcb399f2764a",
+                "filename": "xzuowyo9vuckpyl-invoice18005992.pdf",
+                "url": "https://app.justified.be/cases/LDNN2PX/file/83f07551-3f8c-4b60-99ef-fcb399f2764a",
+                "name": "invoice_18005992.pdf",
+                "inserted_at": "2018-09-05 13:03:34"
+            }
         }
 
-## Case Statements [/cases/{token}/statements]
+## Case Statement Collection [/cases/{token}/statements]
+
++ Parameters
+    + token (string) - Token of the case
 
 ### List Case Statements [GET]
 
@@ -444,11 +496,16 @@ Not all case data can be updated.
 + Response 200 (application/json)
 
         {
+            "data": [
+                {
+                    "token": "83f07551-3f8c-4b60-99ef-fcb399f2764a",
+                    !! TODO
+                }
+            ]
         }
 
 ### Upload Case Statement [POST]
 
-Toevoegen nieuwe statement
 Type (fact, credit)
 Bedrag
 Referentie
@@ -458,16 +515,20 @@ Upload
 + Request (application/json)
 
         {
+            "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
         }
 
 + Response 200 (application/json)
 
         {
+            "data": {
+                "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+            }
         }
 
-### Update Case Statement [PUT]
+## Case Statement [/cases/{token}/statements/{case_statement_token}]
 
-Updaten upload file
+### Update Case Statement [PUT]
 
 + Request (application/json)
 
@@ -477,9 +538,15 @@ Updaten upload file
 + Response 200 (application/json)
 
         {
+            "data": {
+                "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+            }
         }
 
-## Case Discharges [/cases/{token}/discharges]
+## Case Discharge Collection [/cases/{token}/discharges]
+
++ Parameters
+    + token (string) - Token of the case
 
 ### List Case Discharges [GET]
 
@@ -488,34 +555,56 @@ Updaten upload file
 + Response 200 (application/json)
 
         {
+            "data": [
+                {
+                    "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+                    "amount": 50.00,
+                    "date": "2020-02-03",
+                    "inserted_at": "2020-02-05 13:03:34"
+                }
+            ]
         }
 
 ### Add Case Discharge [POST]
 
-Toevoegen nieuwe afkorting
-Bedrag
-Datum
+!! TODO
 
 + Request (application/json)
 
         {
+            "amount": 50.00,
+            "date": "2020-02-03"
         }
 
 + Response 200 (application/json)
 
         {
+            "data": {
+                "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+                "amount": 50.00,
+                "date": "2020-02-03",
+                "inserted_at": "2020-02-05 13:03:34"
+            }
         }
+
+## Case Discharge [/cases/{token}/discharges/{case_discharge_token}]
 
 ### Update Case Discharge [PUT]
 
-Updaten van discharge
-
 + Request (application/json)
 
         {
+            "amount": 50.00,
+            "date": "2020-02-04"
         }
 
 + Response 200 (application/json)
 
         {
+            "data": {
+                "token": "adc8b772-fb65-4d5a-a394-fe3f3673b5e3",
+                "amount": 50.00,
+                "date": "2020-02-04",
+                "inserted_at": "2020-02-05 13:03:34"
+            }
         }
